@@ -1,0 +1,16 @@
+services:
+  docs:
+    image: gdg_registration_backend_local_docs
+    container_name: gdg_registration_backend_local_docs
+    build:
+      context: .
+      dockerfile: ./compose/local/docs/Dockerfile
+    env_file:
+      - ./.envs/.local/.django
+    volumes:
+      - ./docs:/docs:z
+      - ./config:/app/config:z
+      - ./gdg_registration_backend:/app/gdg_registration_backend:z
+    ports:
+      - '9000:9000'
+    command: /start-docs

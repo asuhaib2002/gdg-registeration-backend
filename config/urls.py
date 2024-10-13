@@ -1,6 +1,7 @@
 # ruff: noqa
 from django.conf import settings
 from django.conf.urls.static import static
+from django.contrib.staticfiles.urls import staticfiles_urlpatterns
 from django.contrib import admin
 from django.urls import include
 from django.urls import path
@@ -29,6 +30,7 @@ urlpatterns = [
 ]
 
 # API URLS
+urlpatterns += staticfiles_urlpatterns()
 urlpatterns += [
     # API base url
     path("api/", include("config.api_router")),

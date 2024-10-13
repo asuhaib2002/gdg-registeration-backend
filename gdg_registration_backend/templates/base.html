@@ -1,5 +1,5 @@
 
-{% load static i18n compress%}<!DOCTYPE html>
+{% load static i18n %}<!DOCTYPE html>
 {% get_current_language as LANGUAGE_CODE %}
 <html lang="{{ LANGUAGE_CODE }}">
   <head>
@@ -7,14 +7,14 @@
     <meta http-equiv="x-ua-compatible" content="ie=edge" />
     <title>
       {% block title %}
-      gdg_registration_backend
+      gdg-registration-backend
     {% endblock title %}
   </title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="description"
-        content="backend to be used for the registereation of dev fest 24' and more" />
+        content="Behold My Awesome Project!" />
   <meta name="author"
-        content="Suhaib Ahmed Shariff" />
+        content="Hassam" />
   <link rel="icon" href="{% static 'images/favicons/favicon.ico' %}" />
   {% block css %}
     <!-- Latest compiled and minified Bootstrap CSS -->
@@ -27,10 +27,7 @@
 <!-- This file stores project-specific CSS -->
 
   
-{% compress css %}
   <link href="{% static 'css/project.css' %}" rel="stylesheet" />
-{% endcompress %}
-
 
 
 {% endblock css %}
@@ -52,11 +49,7 @@
 <!-- place project specific Javascript in this file -->
 
   
-
-{% compress js %}
   <script defer src="{% static 'js/project.js' %}"></script>
-{% endcompress %}
-
 
 
 {% endblock javascript %}
@@ -75,7 +68,7 @@
                 aria-label="Toggle navigation">
           <span class="navbar-toggler-icon"></span>
         </button>
-        <a class="navbar-brand" href="{% url 'home' %}">gdg_registration_backend</a>
+        <a class="navbar-brand" href="{% url 'home' %}">gdg-registration-backend</a>
         <div class="collapse navbar-collapse" id="navbarSupportedContent">
           <ul class="navbar-nav mr-auto">
             <li class="nav-item active">

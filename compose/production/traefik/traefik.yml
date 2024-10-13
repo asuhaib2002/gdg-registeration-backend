@@ -2,31 +2,31 @@ log:
   level: INFO
 
 entryPoints:
+  # HTTP entry point
   web:
-    # http
     address: ':80'
     http:
-      # https://doc.traefik.io/traefik/routing/entrypoints/#entrypoint
       redirections:
+        # Redirect HTTP traffic to HTTPS
         entryPoint:
           to: web-secure
 
+  # HTTPS entry point
   web-secure:
-    # https
     address: ':443'
 
 certificatesResolvers:
   letsencrypt:
-    # https://doc.traefik.io/traefik/https/acme/#lets-encrypt
     acme:
       email: 'hellogdgkolachi@gmail.com'
       storage: /etc/traefik/acme/acme.json
-      # https://doc.traefik.io/traefik/https/acme/#httpchallenge
       httpChallenge:
         entryPoint: web
 
 http:
+  # Routers to handle the different paths and services
   routers:
+    # Main router for the Django application (serves the main app)
     web-secure-router:
       rule: 'Host(`devfest.gdgkolachi.com`) && PathPrefix(`/`)'
       entryPoints:
@@ -37,6 +37,7 @@ http:
       tls:
         certResolver: letsencrypt
 
+    # Router for serving static files
     web-static-router:
       rule: 'Host(`devfest.gdgkolachi.com`) && PathPrefix(`/static/`)'
       entryPoints:
@@ -47,6 +48,7 @@ http:
       tls:
         certResolver: letsencrypt
 
+    # Router for serving media files
     web-media-router:
       rule: 'Host(`devfest.gdgkolachi.com`) && PathPrefix(`/media/`)'
       entryPoints:
@@ -57,19 +59,33 @@ http:
       tls:
         certResolver: letsencrypt
 
+  # Middleware for CSRF protection
+  middlewares:
+    csrf:
+      headers:
+        hostsProxyHeaders: ['X-CSRFToken']
+
+  # Services definition
   services:
+    # Django service to handle application requests
     django:
       loadBalancer:
         servers:
-          - url: http://django:5000
+          - url: http://django:5000  # Django is running on port 5000 in Docker
 
+    # Django static service to serve static files (handled by Django)
     django-static:
       loadBalancer:
         servers:
-          - url: http://django:5000  # Django should serve static files here
+          - url: http://django:5000  # Static files should be served from Django itself
 
+    # Nginx service to handle media files
     django-media:
       loadBalancer:
         servers:
-          - url: http://nginx:80  # Nginx should serve media files here
+          - url: http://nginx:80  # Nginx should serve media files
 
+providers:
+  file:
+    filename: /etc/traefik/traefik.yml
+    watch: true

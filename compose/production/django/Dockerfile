@@ -1,9 +1,9 @@
 
 # define an alias for the specific python version used in this file.
-FROM docker.io/python:3.12.7-slim-bookworm AS python
+FROM docker.io/python:3.12.3-slim-bookworm as python
 
 # Python build stage
-FROM python AS python-build-stage
+FROM python as python-build-stage
 
 ARG BUILD_ENVIRONMENT=production
 
@@ -14,7 +14,6 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
   # psycopg dependencies
   libpq-dev
 
-
 # Requirements are installed here to ensure they will be cached.
 COPY ./requirements .
 
@@ -24,14 +23,14 @@ RUN pip wheel --wheel-dir /usr/src/app/wheels  \
 
 
 # Python 'run' stage
-FROM python AS python-run-stage
+FROM python as python-run-stage
 
 ARG BUILD_ENVIRONMENT=production
 ARG APP_HOME=/app
 
-ENV PYTHONUNBUFFERED=1
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV BUILD_ENV=${BUILD_ENVIRONMENT}
+ENV PYTHONUNBUFFERED 1
+ENV PYTHONDONTWRITEBYTECODE 1
+ENV BUILD_ENV ${BUILD_ENVIRONMENT}
 
 WORKDIR ${APP_HOME}
 
@@ -45,8 +44,6 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
   libpq-dev \
   # Translations dependencies
   gettext \
-  # entrypoint
-  wait-for-it \
   # cleaning up unused files
   && apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false \
   && rm -rf /var/lib/apt/lists/*
@@ -69,7 +66,6 @@ COPY --chown=django:django ./compose/production/django/start /start
 RUN sed -i 's/\r$//g' /start
 RUN chmod +x /start
 
-
 # copy application code to WORKDIR
 COPY --chown=django:django . ${APP_HOME}
 
@@ -78,8 +74,7 @@ RUN chown -R django:django ${APP_HOME}
 
 USER django
 
-RUN DATABASE_URL="" \
-  DJANGO_SETTINGS_MODULE="config.settings.test" \
+RUN DJANGO_SETTINGS_MODULE="config.settings.test" \
   python manage.py compilemessages
 
 ENTRYPOINT ["/entrypoint"]

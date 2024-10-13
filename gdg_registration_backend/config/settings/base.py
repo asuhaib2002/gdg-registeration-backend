@@ -101,6 +101,9 @@ THIRD_PARTY_APPS = [
 
 LOCAL_APPS = [
     "gdg_registration_backend.users",
+    "gdg_registration_backend.apps.gdg_registration",
+    "gdg_registration_backend.apps.gdg_participants",
+    "gdg_registration_backend.apps.gdg_events",
     # Your stuff: custom apps go here
 ]
 # https://docs.djangoproject.com/en/dev/ref/settings/#installed-apps

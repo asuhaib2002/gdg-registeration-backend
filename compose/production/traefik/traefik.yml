@@ -24,7 +24,6 @@ certificatesResolvers:
         entryPoint: web
 
 http:
-  # Routers to handle the different paths and services
   routers:
     # Main router for the Django application (serves the main app)
     web-secure-router:
@@ -42,20 +41,16 @@ http:
       rule: 'Host(`devfest.gdgkolachi.com`) && PathPrefix(`/static/`)'
       entryPoints:
         - web-secure
-      middlewares:
-        - csrf
-      service: django-static
+      service: django-static  # Static files are served by Django
       tls:
         certResolver: letsencrypt
 
-    # Router for serving media files
+    # Router for serving media files (using Nginx or Django)
     web-media-router:
       rule: 'Host(`devfest.gdgkolachi.com`) && PathPrefix(`/media/`)'
       entryPoints:
         - web-secure
-      middlewares:
-        - csrf
-      service: django-media
+      service: django-media  # Assuming Nginx or a dedicated service for media
       tls:
         certResolver: letsencrypt
 
@@ -79,7 +74,7 @@ http:
         servers:
           - url: http://django:5000  # Static files should be served from Django itself
 
-    # Nginx service to handle media files
+    # Nginx service to handle media files (change if needed)
     django-media:
       loadBalancer:
         servers:

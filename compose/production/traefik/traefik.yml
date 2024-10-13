@@ -28,14 +28,23 @@ certificatesResolvers:
 http:
   routers:
     web-secure-router:
-      rule: 'Host(`devfest.gdgkolachi.com`)'
+      rule: 'Host(`devfest.gdgkolachi.com`) && PathPrefix(`/`)'
       entryPoints:
         - web-secure
       middlewares:
         - csrf
       service: django
       tls:
-        # https://doc.traefik.io/traefik/routing/routers/#certresolver
+        certResolver: letsencrypt
+
+    web-static-router:
+      rule: 'Host(`devfest.gdgkolachi.com`) && PathPrefix(`/static/`)'
+      entryPoints:
+        - web-secure
+      middlewares:
+        - csrf
+      service: django-static
+      tls:
         certResolver: letsencrypt
 
     web-media-router:
@@ -48,26 +57,19 @@ http:
       tls:
         certResolver: letsencrypt
 
-  middlewares:
-    csrf:
-      # https://doc.traefik.io/traefik/master/middlewares/http/headers/#hostsproxyheaders
-      # https://docs.djangoproject.com/en/dev/ref/csrf/#ajax
-      headers:
-        hostsProxyHeaders: ['X-CSRFToken']
-
   services:
     django:
       loadBalancer:
         servers:
           - url: http://django:5000
 
+    django-static:
+      loadBalancer:
+        servers:
+          - url: http://django:5000  # Django should serve static files here
+
     django-media:
       loadBalancer:
         servers:
-          - url: http://nginx:80
+          - url: http://nginx:80  # Nginx should serve media files here
 
-providers:
-  # https://doc.traefik.io/traefik/master/providers/file/
-  file:
-    filename: /etc/traefik/traefik.yml
-    watch: true

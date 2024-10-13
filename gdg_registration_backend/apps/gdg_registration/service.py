@@ -115,7 +115,6 @@ class RegistrationService:
 
     @staticmethod
     def register_event(event_type: str, data: dict) -> EventRegistration:
-        # Common Participant data
         participant_dto = ParticipantCreateDTO(
             name=data.get('name'),
             email_address=data.get('email_address'),
@@ -130,7 +129,7 @@ class RegistrationService:
         # Event-specific logic
         if event_type == EventTypes.WORKSHOP.value:
             workshop_dto = WorkshopParticipantCreateDTO(
-                **participant_dto.__dict__,  # Inherit common fields
+                **participant_dto.__dict__,  
                 workshop_participation=data.get('workshop_participation', [])
             )
             workshop_dto.validate()
@@ -138,7 +137,7 @@ class RegistrationService:
         
         elif event_type == EventTypes.CONFERENCE.value:
             conference_dto = ConferenceParticipantCreateDTO(
-                **participant_dto.__dict__,  # Inherit common fields
+                **participant_dto.__dict__,  
                 job_role=data['job_role']
             )
             conference_dto.validate()
@@ -146,7 +145,7 @@ class RegistrationService:
 
         elif event_type == EventTypes.HACKATHON.value:
             hackathon_dto = HackathonParticipantCreateDTO(
-                **participant_dto.__dict__,  # Inherit common fields
+                **participant_dto.__dict__,  
                 team_name=data.get('team_name'),
                 team_members=data.get('team_members'),
                 purpose_of_participation=data.get('purpose_of_participation', ''),
@@ -161,10 +160,8 @@ class RegistrationService:
     
     @staticmethod
     def _create_registration(event_type: str, event_dto) -> EventRegistration:
-        # Assume you have Event and Participant models
         event = Event.objects.get(event_type=event_type)
 
-        # Create the Participant object
         participant = Participant.objects.create(
             name=event_dto.name,
             email_address=event_dto.email_address,
@@ -175,7 +172,6 @@ class RegistrationService:
             ambassador_name=event_dto.ambassador_name
         )
 
-        # Create Event Registration
         registration = EventRegistration.objects.create(
             participant=participant,
             event=event,

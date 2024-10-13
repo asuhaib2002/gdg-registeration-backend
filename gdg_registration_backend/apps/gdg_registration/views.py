@@ -1,6 +1,7 @@
 from django.shortcuts import render
 
 # Create your views here.
+from marshmallow import ValidationError
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -60,13 +61,18 @@ class EventRegistrationView(APIView):
         if not event_type:
             return Response({"error": "Event type is required"}, status=status.HTTP_400_BAD_REQUEST)
         
-        # try:
-        registration = RegistrationService.register_event(event_type, request.data)
-        return Response(
-            {"message": "Registration successful", "registration_id": registration.id},
-            status=status.HTTP_201_CREATED
-        )
-        # except ValueError as e:
-        #     return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-        # except Exception as e:
-        #     return Response({"error": "Internal server error"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        try:
+            registration = RegistrationService.register_event(event_type, request.data)
+            return Response(
+                {"message": "Registration successful", "registration_id": registration.id},
+                status=status.HTTP_201_CREATED
+            )
+        except ValidationError as e:
+            return Response(
+                {"error": str(e)},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        except ValueError as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({"error": "Internal server error"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

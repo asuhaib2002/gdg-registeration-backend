@@ -1,1 +1,1 @@
-# gdg-registeration-backend
+# gdg-registration-backend

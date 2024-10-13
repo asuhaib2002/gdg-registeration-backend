@@ -11,13 +11,13 @@ class ParticipantDTO:
     name: str
     email_address: str
     cnic: str
-    registered_as: str
+    participant_type: str
     phone_number: str
     organization: str
     linkedin_url: str
     ambassador_name: str
     payment_acknowledgement: bool
-    status: str
+    participant_status: str
 
 # Workshop Participant DTO
 @dataclass
@@ -58,7 +58,7 @@ class ParticipantCreateDTO:
     name: str
     email_address: str
     cnic: str
-    registered_as: str
+    participant_type: str
     phone_number: str
     organization: str
     linkedin_url: str
@@ -75,8 +75,8 @@ class ParticipantCreateDTO:
             errors.append("Phone number is required")
         if not self.cnic:
             errors.append("CNIC is required")
-        if not self.registered_as:
-            errors.append("Registered as (participant type) is required")
+        if not self.participant_type:
+            errors.append("participant type is required")
         if errors:
             raise ValueError(errors)
 

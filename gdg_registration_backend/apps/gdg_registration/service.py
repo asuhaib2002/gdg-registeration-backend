@@ -31,13 +31,13 @@ class RegistrationService:
                     name=reg.participant.name,
                     email_address=reg.participant.email_address,
                     cnic=reg.participant.cnic,
-                    registered_as=reg.participant.participant_type,
+                    participant_type=reg.participant.participant_type,
                     phone_number=reg.participant.phone_number,
                     organization=reg.participant.organization,
                     linkedin_url=reg.participant.linkedin_url,
                     ambassador_name=reg.participant.ambassador_name,
                     payment_acknowledgement=reg.participant.payment_acknowledgement,
-                    status=reg.participant.participant_status,
+                    participant_status=reg.participant.participant_status,
                     workshop_participation=reg.workshop_participation
                 ) for reg in registrations[page * per_page - per_page: page * per_page]
             ]
@@ -49,13 +49,13 @@ class RegistrationService:
                     name=reg.participant.name,
                     email_address=reg.participant.email_address,
                     cnic=reg.participant.cnic,
-                    registered_as=reg.participant.participant_type,
+                    participant_type=reg.participant.participant_type,
                     phone_number=reg.participant.phone_number,
                     organization=reg.participant.organization,
                     linkedin_url=reg.participant.linkedin_url,
                     ambassador_name=reg.participant.ambassador_name,
                     payment_acknowledgement=reg.participant.payment_acknowledgement,
-                    status=reg.participant.participant_status,
+                    participant_status=reg.participant.participant_status,
                     job_role=reg.participant.job_role
                 ) for reg in registrations[page * per_page - per_page: page * per_page]
             ]
@@ -67,13 +67,13 @@ class RegistrationService:
                     name=reg.participant.name,
                     email_address=reg.participant.email_address,
                     cnic=reg.participant.cnic,
-                    registered_as=reg.participant.participant_type,
+                    participant_type=reg.participant.participant_type,
                     phone_number=reg.participant.phone_number,
                     organization=reg.participant.organization,
                     linkedin_url=reg.participant.linkedin_url,
                     ambassador_name=reg.participant.ambassador_name,
                     payment_acknowledgement=reg.participant.payment_acknowledgement,
-                    status=reg.participant.participant_status,
+                    participant_status=reg.participant.participant_status,
                     team_name=reg.team_name,
                     team_members=[
                         HackathonTeamMemberDTO(
@@ -120,7 +120,7 @@ class RegistrationService:
             email_address=data.get('email_address'),
             phone_number=data.get('phone_number'),
             cnic=data.get('cnic'),
-            registered_as=data.get('registered_as'),
+            participant_type=data.get('participant_type'),
             organization=data.get('organization', ''),
             linkedin_url=data.get('linkedin_url', ''),
             ambassador_name=data.get('ambassador_name', '')
@@ -162,7 +162,7 @@ class RegistrationService:
     def _create_registration(event_type: str, event_dto) -> EventRegistration:
         event = Event.objects.get(event_type=event_type)
 
-        participant = Participant.objects.create(
+        participant, created = Participant.objects.get_or_create(
             name=event_dto.name,
             email_address=event_dto.email_address,
             phone_number=event_dto.phone_number,
@@ -171,6 +171,10 @@ class RegistrationService:
             linkedin_url=event_dto.linkedin_url,
             ambassador_name=event_dto.ambassador_name
         )
+
+        # if event_type != EventTypes.WORKSHOP.value:
+        if EventRegistration.objects.filter(participant=participant, event=event).exists():
+            raise ValueError("Participant is already registered for this event.")
 
         registration = EventRegistration.objects.create(
             participant=participant,

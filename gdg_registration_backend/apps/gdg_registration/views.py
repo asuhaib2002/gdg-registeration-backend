@@ -13,23 +13,23 @@ class GetEventListAPI(APIView):
     permission_classes = []
 
     def get(self, request):
-        # try:
-        page = request.query_params.get('page', 1)
-        per_page = request.query_params.get('perPage', 10)
-        filter_by = request.query_params.get('filterBy', None)
-        search = request.query_params.get('search', None)
+        try:
+            page = request.query_params.get('page', 1)
+            per_page = request.query_params.get('perPage', 10)
+            filter_by = request.query_params.get('filterBy', None)
+            search = request.query_params.get('search', None)
 
-        event_type = request.query_params.get('event_type')
-        if not event_type:
-            return Response({"error": "event_type query parameter is required"}, status=status.HTTP_400_BAD_REQUEST)
+            event_type = request.query_params.get('event_type')
+            if not event_type:
+                return Response({"error": "event_type query parameter is required"}, status=status.HTTP_400_BAD_REQUEST)
 
-        event_dto = RegistrationService.get_event_list(event_type, page, per_page, filter_by, search)
-        return Response(event_dto, status=status.HTTP_200_OK)
-        
-        # except ValueError as e:
-        #     return Response({"error": str(e)}, status=status.HTTP_404_NOT_FOUND)
-        # except Exception as e:
-        #     return Response({"error": "Something went wrong"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            event_dto = RegistrationService.get_event_list(event_type, page, per_page, filter_by, search)
+            return Response(event_dto, status=status.HTTP_200_OK)
+            
+        except ValueError as e:
+            return Response({"error": str(e)}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({"error": "Something went wrong"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class ShortlistParticipantsAPI(APIView):
     permission_classes = []

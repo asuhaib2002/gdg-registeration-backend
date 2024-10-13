@@ -7,20 +7,20 @@ set -o nounset
 
 python /app/manage.py collectstatic --noinput
 
-compress_enabled() {
-python << END
-import sys
+# compress_enabled() {
+# python << END
+# import sys
 
-from environ import Env
+# from environ import Env
 
-env = Env(COMPRESS_ENABLED=(bool, True))
-if env('COMPRESS_ENABLED'):
-    sys.exit(0)
-else:
-    sys.exit(1)
+# env = Env(COMPRESS_ENABLED=(bool, True))
+# if env('COMPRESS_ENABLED'):
+#     sys.exit(0)
+# else:
+#     sys.exit(1)
 
-END
-}
+# END
+# }
 
 # if compress_enabled; then
 #   # NOTE this command will fail if django-compressor is disabled

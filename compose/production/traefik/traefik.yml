@@ -36,14 +36,6 @@ http:
       tls:
         certResolver: letsencrypt
 
-    # Router for serving static files
-    web-static-router:
-      rule: 'Host(`devfest.gdgkolachi.com`) && PathPrefix(`/static/`)'
-      entryPoints:
-        - web-secure
-      service: django-static  # Static files are served by Django
-      tls:
-        certResolver: letsencrypt
 
     # Router for serving media files (using Nginx or Django)
     web-media-router:
@@ -53,6 +45,14 @@ http:
       service: django-media  # Assuming Nginx or a dedicated service for media
       tls:
         certResolver: letsencrypt
+
+    admin-router:
+      rule: 'Host(`devfest.gdgkolachi.com`)'
+      entryPoints:
+        - web-secure
+      service: admin-service
+      tls:
+        certResolver: letsencrypt      
 
   # Middleware for CSRF protection
   middlewares:
@@ -79,6 +79,10 @@ http:
       loadBalancer:
         servers:
           - url: http://nginx:80  # Nginx should serve media files
+    admin-service:
+      loadBalancer:
+        servers:
+          - url: http://django:5000/admin  # Redirect to the Django admin panel
 
 providers:
   file:

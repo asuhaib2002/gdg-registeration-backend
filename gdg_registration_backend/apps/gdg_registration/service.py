@@ -4,6 +4,7 @@ from django.core.exceptions import ValidationError
 from django.db.models import Q
 from django.core.paginator import Paginator
 from functools import wraps
+from django.db import transaction
 
 from gdg_registration_backend.apps.gdg_events.models import Event
 from gdg_registration_backend.apps.gdg_events.data_class_model import EventDTO
@@ -28,10 +29,11 @@ def validate_event(func):
     """Decorator to validate event existence and type."""
     @wraps(func)
     def wrapper(cls, event_type: str, *args, **kwargs):
-        event = Event.objects.filter(event_type=event_type).first()
-        if not event:
+        try:
+            event = Event.objects.get(event_type=event_type)
+            return func(cls, event_type, *args, **kwargs)
+        except Event.DoesNotExist:
             raise ValidationError(f"Event of type {event_type} not found")
-        return func(cls, event_type, *args, **kwargs)
     return wrapper
 
 class RegistrationService:
@@ -41,16 +43,18 @@ class RegistrationService:
         EventTypes.HACKATHON.value: HackathonParticipantDTO,
     }
 
+    DEFAULT_ORDERING = ['participant__name', 'created_at']
+
     @classmethod
     def _build_search_query(cls, search: str) -> Q:
         """Build Q object for searching across multiple fields."""
         if not search:
             return Q()
         
-        return Q(name__icontains=search) | \
-               Q(email_address__icontains=search) | \
-               Q(organization__icontains=search) | \
-               Q(phone_number__icontains=search)
+        return Q(participant__name__icontains=search) | \
+               Q(participant__email_address__icontains=search) | \
+               Q(participant__organization__icontains=search) | \
+               Q(participant__phone_number__icontains=search)
 
     @classmethod
     def _apply_filters(cls, queryset, filters: Dict[str, Any]) -> Any:
@@ -58,14 +62,90 @@ class RegistrationService:
         if not filters:
             return queryset
 
-        # Handle special filter cases
-        if 'participant_status' in filters:
-            status_value = filters.pop('participant_status')
-            if hasattr(ParticipantStatus, status_value.upper()):
-                queryset = queryset.filter(participant_status=status_value)
+        # Transform filters to match participant fields
+        transformed_filters = {}
+        for key, value in filters.items():
+            if key == 'participant_status':
+                transformed_filters['participant__participant_status'] = value
+            elif key.startswith('participant__'):
+                transformed_filters[key] = value
+            else:
+                transformed_filters[f'participant__{key}'] = value
 
-        # Apply remaining filters
-        return queryset.filter(**filters)
+        return queryset.filter(**transformed_filters)
+
+    @classmethod
+    @validate_event
+    def get_event_list(
+        cls,
+        event_type: str,
+        page: int,
+        per_page: int,
+        filter_by: Dict[str, Any],
+        search: str
+    ) -> Dict[str, Any]:
+        """Get filtered and paginated event list."""
+        try:
+            # Start with event registrations and prefetch related participant data
+            registrations = EventRegistration.objects.filter(
+                event__event_type=event_type
+            ).select_related(
+                'participant'
+            ).order_by(
+                *cls.DEFAULT_ORDERING
+            )
+
+            # Apply search if provided
+            search_query = cls._build_search_query(search)
+            if search_query:
+                registrations = registrations.filter(search_query)
+
+            # Apply filters
+            registrations = cls._apply_filters(registrations, filter_by)
+
+            # Calculate pagination
+            try:
+                page = int(page)
+                per_page = int(per_page)
+            except (TypeError, ValueError):
+                page = 1
+                per_page = 10
+
+            # Ensure positive values
+            page = max(1, page)
+            per_page = max(1, min(100, per_page))  # Limit max per_page to 100
+
+            # Create paginator with ordered queryset
+            paginator = Paginator(registrations, per_page)
+            
+            # Handle page number exceeding max pages
+            total_pages = paginator.num_pages
+            if page > total_pages:
+                page = total_pages if total_pages > 0 else 1
+
+            page_obj = paginator.get_page(page)
+
+            # Create DTOs for participants
+            participant_dtos = [
+                cls._create_participant_dto(registration, event_type)
+                for registration in page_obj
+            ]
+
+            return {
+                "event_type": event_type,
+                "participants": participant_dtos,
+                "pagination": {
+                    "total_count": paginator.count,
+                    "total_pages": total_pages,
+                    "current_page": page,
+                    "per_page": per_page,
+                    "has_next": page_obj.has_next(),
+                    "has_previous": page_obj.has_previous()
+                }
+            }
+
+        except Exception as e:
+            raise ValidationError(f"Error fetching event list: {str(e)}")
 
     @classmethod
     def _create_participant_dto(cls, registration: EventRegistration, event_type: str) -> Any:
@@ -74,24 +154,27 @@ class RegistrationService:
         if not dto_class:
             raise ValidationError(f"Invalid event type: {event_type}")
 
+        participant = registration.participant
         base_dto_data = {
-            "id": registration.participant.id,
-            "name": registration.participant.name,
-            "email_address": registration.participant.email_address,
-            "cnic": registration.participant.cnic,
-            "participant_type": registration.participant.participant_type,
-            "phone_number": registration.participant.phone_number,
-            "organization": registration.participant.organization,
-            "linkedin_url": registration.participant.linkedin_url,
-            "ambassador_name": registration.participant.ambassador_name,
-            "payment_acknowledgement": registration.participant.payment_acknowledgement,
-            "status": registration.participant.participant_status,
+            "id": participant.id,
+            "name": participant.name,
+            "email_address": participant.email_address,
+            "cnic": participant.cnic,
+            "participant_type": participant.participant_type,
+            "phone_number": participant.phone_number,
+            "organization": participant.organization,
+            "linkedin_url": participant.linkedin_url,
+            "ambassador_name": participant.ambassador_name,
+            "payment_acknowledgement": participant.payment_acknowledgement,
+            "status": participant.participant_status,
+            "registration_id": registration.id,
+            "created_at": registration.created_at.isoformat() if registration.created_at else None,
         }
 
         if event_type == EventTypes.WORKSHOP.value:
             base_dto_data["workshop_participation"] = registration.workshop_participation
         elif event_type == EventTypes.CONFERENCE.value:
-            base_dto_data["job_role"] = registration.participant.job_role
+            base_dto_data["job_role"] = participant.job_role
         elif event_type == EventTypes.HACKATHON.value:
             base_dto_data.update({
                 "team_name": registration.team_name,

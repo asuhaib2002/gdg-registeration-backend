@@ -8,7 +8,10 @@ from rest_framework import status
 
 from gdg_registration_backend.apps.gdg_participants.data_class_model import ShortlistDTO
 from .service import RegistrationService
+import logging
 
+# Set up a logger for this module
+logger = logging.getLogger(__name__)
 
 class GetEventListAPI(APIView):
     permission_classes = []

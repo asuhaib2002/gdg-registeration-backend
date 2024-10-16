@@ -157,3 +157,7 @@ SPECTACULAR_SETTINGS["SERVERS"] = [
 ]
 # Your stuff...
 # ------------------------------------------------------------------------------
+CORS_ALLOWED_ORIGINS = [
+    'https://devfest.gdgkolachi.com',
+]
+CORS_ALLOW_CREDENTIALS = True

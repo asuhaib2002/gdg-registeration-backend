@@ -20,7 +20,10 @@ from gdg_registration_backend.apps.gdg_participants.enums import ParticipantStat
 from gdg_registration_backend.apps.gdg_participants.models import Participant
 from gdg_registration_backend.apps.gdg_registration.models import EventRegistration
 from gdg_registration_backend.apps.gdg_events.enums import EventTypes
+import logging
 
+# Set up a logger for this module
+logger = logging.getLogger(__name__)
 
 class RegistrationService:
 

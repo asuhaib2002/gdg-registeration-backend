@@ -20,37 +20,46 @@ from gdg_registration_backend.apps.gdg_participants.enums import ParticipantStat
 from gdg_registration_backend.apps.gdg_participants.models import Participant
 from gdg_registration_backend.apps.gdg_registration.models import EventRegistration
 from gdg_registration_backend.apps.gdg_events.enums import EventTypes
-import logging
 
-# Set up a logger for this module
-logger = logging.getLogger(__name__)
 
 class RegistrationService:
 
     @staticmethod
-    def get_event_list(event_type: str, page: int, per_page: int, filter_by: dict) -> dict:
-        # Fetch event
+    def get_event_list(event_type: str, page: int, per_page: int, filter_by: str, search: str) -> EventDTO:
+        # Define valid fields for filtering
+        VALID_FIELDS = ['name', 'email_address', 'phone_number', 'organization', 'linkedin_url']
+
+        # Ensure filter_by and search parameters are provided
+        if filter_by and search:
+            filters = filter_by.split(',')
+            searches = search.split(',')
+            if len(filters) != len(searches):
+                logger.error("The number of filters and search values must be equal.")
+                return Response({"error": "The number of filters and search values must be equal."}, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            logger.error("Both 'filterBy' and 'search' parameters are required.")
+            return Response({"error": "Both 'filterBy' and 'search' parameters are required."}, status=status.HTTP_400_BAD_REQUEST)
+
         event = Event.objects.filter(event_type=event_type).first()
         if not event:
             raise ValueError("Event not found.")
 
-        # Initialize participants queryset
         participants = Participant.objects.all()
 
-        # Apply filters dynamically based on filter_by dict
-        if filter_by:
-            for field, value in filter_by.items():
-                # Validate that the field exists in the Participant model
-                if not hasattr(Participant, field):
-                    raise ValueError(f"Invalid filter field '{field}' provided.")
-                participants = participants.filter(**{field: value})
+        # Apply filters based on filter_by and search values
+        for field, search_term in zip(filters, searches):
+            if field not in VALID_FIELDS:
+                logger.error(f"Invalid filter field '{field}' provided.")
+                return Response({"error": f"Invalid filter field '{field}' provided."}, status=status.HTTP_400_BAD_REQUEST)
+            if field == 'name' or field == 'email_address':
+                participants = participants.filter(**{f'{field}__icontains': search_term})
+            else:
+                participants = participants.filter(**{field: search_term})
 
-        # Paginate the results
-        start_idx = (page - 1) * per_page
-        end_idx = page * per_page
-        registrations = EventRegistration.objects.filter(event=event, participant__in=participants)[start_idx:end_idx]
+        # Paginate results
+        registrations = EventRegistration.objects.filter(event=event, participant__in=participants)[(page - 1) * per_page: page * per_page]
 
-        # Handle different event types
+        # Map registration results to event-specific DTOs
         if event_type == EventTypes.WORKSHOP.value:
             participant_dtos = [
                 WorkshopParticipantDTO(
@@ -102,7 +111,16 @@ class RegistrationService:
                     payment_acknowledgement=reg.participant.payment_acknowledgement,
                     status=reg.participant.participant_status,
                     team_name=reg.team_name,
-                    team_members=[...],  # Hackathon team members logic
+                    team_members=[
+                        HackathonTeamMemberDTO(
+                            name=team_member['name'],
+                            email_address=team_member.get('email_address'),
+                            linkedin_url=team_member.get('linkedin_url'),
+                            github_url=team_member.get('github_url', 'N/A'),
+                            phone_number=team_member.get('phone_number'),
+                            cnic=team_member.get('cnic')
+                        ) for team_member in reg.team_members
+                    ],
                     purpose_of_participation=reg.purpose_of_participation,
                     google_technologies=reg.google_technologies,
                     previous_projects=reg.previous_projects
@@ -112,9 +130,12 @@ class RegistrationService:
         else:
             raise ValueError("Invalid event type.")
 
-        # Return as dict
+        # Convert to dictionary for API response
         event_dto = EventDTO(event_type=event.event_type, participants=participant_dtos)
-        return asdict(event_dto)
+        response_data = asdict(event_dto)
+
+        return response_data
+
 
     @staticmethod
     def shortlist_participants(shortlist_dto: ShortlistDTO, event_type: str) -> None:

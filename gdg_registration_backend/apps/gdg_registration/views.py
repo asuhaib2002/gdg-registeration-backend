@@ -16,43 +16,21 @@ logger = logging.getLogger(__name__)
 class GetEventListAPI(APIView):
     permission_classes = []
 
-    VALID_FILTER_FIELDS = ['participant_type', 'organization', 'job_role']  # Add more valid filter fields here
-
     def get(self, request):
-        # Get parameters from request
-        page = int(request.query_params.get('page', 1))
-        per_page = int(request.query_params.get('perPage', 10))
+        page = request.query_params.get('page', 1)
+        per_page = request.query_params.get('perPage', 10)
+        filter_by = request.query_params.get('filterBy', None)
+        search = request.query_params.get('search', None)
         event_type = request.query_params.get('event_type')
 
-        # Validate event_type
         if not event_type:
             return Response({"error": "event_type query parameter is required"}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Validate filters
-        filter_by = {}
-        for param, value in request.query_params.items():
-            if param.startswith('filterBy'):
-                filter_field = value
-                if filter_field not in self.VALID_FILTER_FIELDS:
-                    return Response(
-                        {"error": f"Invalid filter field '{filter_field}' provided."},
-                        status=status.HTTP_400_BAD_REQUEST
-                    )
-                if not request.query_params.get(f"search"):
-                    return Response(
-                        {"error": f"Search parameter is required for filter '{filter_field}'."},
-                        status=status.HTTP_400_BAD_REQUEST
-                    )
-                filter_by[filter_field] = request.query_params.get(f"search")
+        if filter_by and not search:
+            return Response({"error": "Both 'filterBy' and 'search' parameters are required"}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Call the service method
-        try:
-            event_dto = RegistrationService.get_event_list(event_type, page, per_page, filter_by)
-            return Response(event_dto, status=status.HTTP_200_OK)
-        except ValueError as e:
-            return Response({"error": str(e)}, status=status.HTTP_404_NOT_FOUND)
-        except Exception as e:
-            return Response({"error": "Something went wrong"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        event_dto = RegistrationService.get_event_list(event_type, page, per_page, filter_by, search)
+        return Response(event_dto, status=status.HTTP_200_OK)
 
 
 

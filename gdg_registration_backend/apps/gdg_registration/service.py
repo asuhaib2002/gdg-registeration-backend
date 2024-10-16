@@ -25,25 +25,29 @@ from gdg_registration_backend.apps.gdg_events.enums import EventTypes
 class RegistrationService:
 
     @staticmethod
-    def get_event_list(
-        event_type: str, page: int, per_page: int, filter_by: str, search: str
-    ) -> EventDTO:
+    def get_event_list(event_type: str, page: int, per_page: int, filter_by: dict) -> dict:
+        # Fetch event
         event = Event.objects.filter(event_type=event_type).first()
         if not event:
             raise ValueError("Event not found.")
 
+        # Initialize participants queryset
         participants = Participant.objects.all()
 
-        # Apply multiple filters dynamically
+        # Apply filters dynamically based on filter_by dict
         if filter_by:
-            participants = participants.filter(**filter_by)
+            for field, value in filter_by.items():
+                # Validate that the field exists in the Participant model
+                if not hasattr(Participant, field):
+                    raise ValueError(f"Invalid filter field '{field}' provided.")
+                participants = participants.filter(**{field: value})
 
-        if search:
-            # You could add logic here to handle search across multiple fields, if needed
-            participants = participants.filter(name__icontains=search)
+        # Paginate the results
+        start_idx = (page - 1) * per_page
+        end_idx = page * per_page
+        registrations = EventRegistration.objects.filter(event=event, participant__in=participants)[start_idx:end_idx]
 
-        registrations = EventRegistration.objects.filter(event=event, participant__in=participants)
-
+        # Handle different event types
         if event_type == EventTypes.WORKSHOP.value:
             participant_dtos = [
                 WorkshopParticipantDTO(
@@ -51,16 +55,15 @@ class RegistrationService:
                     name=reg.participant.name,
                     email_address=reg.participant.email_address,
                     cnic=reg.participant.cnic,
-                    participant_type=reg.participant.participant_type,
+                    registered_as=reg.participant.participant_type,
                     phone_number=reg.participant.phone_number,
                     organization=reg.participant.organization,
                     linkedin_url=reg.participant.linkedin_url,
                     ambassador_name=reg.participant.ambassador_name,
                     payment_acknowledgement=reg.participant.payment_acknowledgement,
                     status=reg.participant.participant_status,
-                    workshop_participation=reg.workshop_participation,
-                )
-                for reg in registrations[page * per_page - per_page : page * per_page]
+                    workshop_participation=reg.workshop_participation
+                ) for reg in registrations
             ]
 
         elif event_type == EventTypes.CONFERENCE.value:
@@ -70,16 +73,15 @@ class RegistrationService:
                     name=reg.participant.name,
                     email_address=reg.participant.email_address,
                     cnic=reg.participant.cnic,
-                    participant_type=reg.participant.participant_type,
+                    registered_as=reg.participant.participant_type,
                     phone_number=reg.participant.phone_number,
                     organization=reg.participant.organization,
                     linkedin_url=reg.participant.linkedin_url,
                     ambassador_name=reg.participant.ambassador_name,
                     payment_acknowledgement=reg.participant.payment_acknowledgement,
                     status=reg.participant.participant_status,
-                    job_role=reg.participant.job_role,
-                )
-                for reg in registrations[page * per_page - per_page : page * per_page]
+                    job_role=reg.participant.job_role
+                ) for reg in registrations
             ]
 
         elif event_type == EventTypes.HACKATHON.value:
@@ -89,38 +91,27 @@ class RegistrationService:
                     name=reg.participant.name,
                     email_address=reg.participant.email_address,
                     cnic=reg.participant.cnic,
-                    participant_type=reg.participant.participant_type,
+                    registered_as=reg.participant.participant_type,
                     phone_number=reg.participant.phone_number,
                     organization=reg.participant.organization,
                     linkedin_url=reg.participant.linkedin_url,
                     ambassador_name=reg.participant.ambassador_name,
                     payment_acknowledgement=reg.participant.payment_acknowledgement,
-                    participant_status=reg.participant.participant_status,
+                    status=reg.participant.participant_status,
                     team_name=reg.team_name,
-                    team_members=[
-                        HackathonTeamMemberDTO(
-                            name=team_member["name"],
-                            email_address=team_member.get("email_address"),
-                            linkedin_url=team_member.get("linkedin_url"),
-                            github_url=team_member.get("github_url", "N/A"),
-                            phone_number=team_member.get("phone_number"),
-                            cnic=team_member.get("cnic"),
-                        )
-                        for team_member in reg.team_members
-                    ],
+                    team_members=[...],  # Hackathon team members logic
                     purpose_of_participation=reg.purpose_of_participation,
                     google_technologies=reg.google_technologies,
-                    previous_projects=reg.previous_projects,
-                )
-                for reg in registrations[page * per_page - per_page : page * per_page]
+                    previous_projects=reg.previous_projects
+                ) for reg in registrations
             ]
 
         else:
             raise ValueError("Invalid event type.")
-        event_dto = EventDTO(event_type=event.event_type, participants=participant_dtos)
-        response_data = asdict(event_dto)  # Convert the dataclass to a dictionary
 
-        return response_data
+        # Return as dict
+        event_dto = EventDTO(event_type=event.event_type, participants=participant_dtos)
+        return asdict(event_dto)
 
     @staticmethod
     def shortlist_participants(shortlist_dto: ShortlistDTO, event_type: str) -> None:

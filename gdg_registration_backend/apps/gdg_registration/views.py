@@ -100,14 +100,17 @@ class UpdateParticipantStatusAPI(APIView):
             # Create a DTO for participants
             shortlist_dto = ShortlistDTO(participants=participants)
 
-            # Call the service to update participants' status
-            RegistrationService.status_participants(
+            # Call the service to update participants' status and get their names
+            updated_participants = RegistrationService.status_participants(
                 shortlist_dto, event_type, participant_status
             )
 
-            # Return success response
+            # Return success response with updated participant names
             return Response(
-                {"message": "Participants status updated successfully"},
+                {
+                    "message": "Participants status updated successfully",
+                    "updated_participants": updated_participants
+                },
                 status=status.HTTP_200_OK,
             )
 
@@ -120,6 +123,7 @@ class UpdateParticipantStatusAPI(APIView):
                 {"error": "Something went wrong"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
+
 
 
 

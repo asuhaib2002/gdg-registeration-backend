@@ -135,14 +135,17 @@ class RegistrationService:
             # Send email notification here
 
     @staticmethod
-    def status_participants(shortlist_dto: ShortlistDTO, event_type: str, participant_status: str) -> None:
-        # Validate if the status is a valid enum value
+    def status_participants(shortlist_dto: ShortlistDTO, event_type: str, participant_status: str) -> list:
         # Validate if the status is a valid enum value
         if not ParticipantStatus.is_valid_status(participant_status):
             raise ValueError(f"Invalid participant status: {participant_status}")
     
         # Fetch participants based on provided IDs
         participants = Participant.objects.filter(id__in=shortlist_dto.participants)
+        
+        # Ensure that there are participants to update
+        if not participants.exists():
+            raise ValueError("No valid participants found.")
     
         # Fetch the event by type
         event = Event.objects.filter(event_type=event_type).first()
@@ -153,11 +156,20 @@ class RegistrationService:
         registrations = EventRegistration.objects.filter(
             event=event, participant__in=participants
         )
+        
+        # List to store updated participant names
+        updated_participants = []
     
-        # Update the status for each participant
+        # Update the status for each participant in the registration
         for registration in registrations:
             registration.participant.participant_status = participant_status
             registration.participant.save()
+    
+            # Append the participant's name to the list after status update
+            updated_participants.append(registration.participant.name)
+    
+        return updated_participants
+
                 
 
     @staticmethod

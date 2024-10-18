@@ -28,8 +28,8 @@ class RegistrationService:
 
     @staticmethod
     def get_event_list(
-        event_type: str, page: int, per_page: int, filters: dict = None
-    ) -> dict:
+        event_type: str, page: int, per_page: int, filter_by: dict
+    ) -> EventDTO:
 
         VALID_FILTERS = [
             "name",
@@ -40,39 +40,40 @@ class RegistrationService:
             "participant_type",
             "ambassador_name",
             "participant_status",
-        ]  # Add valid fields here
+        ]
+        # Fetch the event based on the provided event_type
         event = Event.objects.filter(event_type=event_type).first()
         if not event:
             raise ValueError("Event not found.")
 
-        # Step 2: Initialize the filter query
-        filter_queries = Q()
+        # Create a base query for event registrations
+        registrations_query = EventRegistration.objects.filter(event=event)
 
-        # Step 3: Validate filters and build the query
-        if filters:
-            for filter_by, search in filters.items():
-                if filter_by not in VALID_FILTERS:
-                    raise ValueError(f"Invalid filter field: {filter_by}")
-                # Use icontains for case-insensitive matching
-                filter_queries &= Q(**{f"{filter_by}__icontains": search})
+        # Apply filters if any
+        if filter_by:
+            filters = Q()  # Create an empty Q object for chaining filters
+            for key, value in filter_by.items():
+                # Validate if the key is in the valid filters
+                if key in VALID_FILTERS:
+                    filters |= Q(
+                        participant__ ** {key: value}
+                    )  # Combine filters using OR for participant fields
+                else:
+                    raise ValueError(
+                        f"Invalid filter: {key}"
+                    )  # Raise an error for invalid filters
+            registrations_query = registrations_query.filter(filters)
 
-        # Step 4: Fetch participants based on the filter queries
-        participants = (
-            Participant.objects.filter(filter_queries)
-            if filters
-            else Participant.objects.all()
-        )
+        # Get total count of participants based on filtered registrations
+        total_participants = registrations_query.count()
 
-        # Step 5: Filter event registrations for the retrieved event and participants
-        registrations = EventRegistration.objects.filter(
-            event=event, participant__in=participants
-        )
+        # Paginate the registrations for the current page
+        registrations = registrations_query[
+            page * per_page - per_page : page * per_page
+        ]
 
-        # Step 6: Paginate the query to handle large datasets efficiently
-        paginator = Paginator(registrations, per_page)
-        paginated_registrations = paginator.get_page(page)
-
-        # Step 7: Select-Related/Pagination (depending on the event type)
+        # Prepare participant DTOs based on the event type
+        participant_dtos = []
         if event_type == EventTypes.WORKSHOP.value:
             participant_dtos = [
                 WorkshopParticipantDTO(
@@ -89,7 +90,7 @@ class RegistrationService:
                     participant_status=reg.participant.participant_status,
                     workshop_participation=reg.workshop_participation,
                 )
-                for reg in paginated_registrations
+                for reg in registrations
             ]
 
         elif event_type == EventTypes.CONFERENCE.value:
@@ -108,7 +109,7 @@ class RegistrationService:
                     participant_status=reg.participant.participant_status,
                     job_role=reg.participant.job_role,
                 )
-                for reg in paginated_registrations
+                for reg in registrations
             ]
 
         elif event_type == EventTypes.HACKATHON.value:
@@ -141,16 +142,19 @@ class RegistrationService:
                     google_technologies=reg.google_technologies,
                     previous_projects=reg.previous_projects,
                 )
-                for reg in paginated_registrations
+                for reg in registrations
             ]
-
         else:
             raise ValueError("Invalid event type.")
 
-        # Step 8: Convert the dataclass to a dictionary
-        event_dto = EventDTO(event_type=event.event_type, participants=participant_dtos)
-        response_data = asdict(event_dto)  # Converts dataclass to dict
+        # Create the event DTO with total participants
+        event_dto = EventDTO(
+            event_type=event.event_type,
+            participants=participant_dtos,
+            total_participants=total_participants,  # Add total participants to the DTO
+        )
 
+        response_data = asdict(event_dto)  # Convert the dataclass to a dictionary
         return response_data
 
     @staticmethod
@@ -204,14 +208,22 @@ class RegistrationService:
 
             # Update the participant's status based on the current status
             if current_status == ParticipantStatus.PENDING.value:
-                registration.participant.participant_status = ParticipantStatus.SHORTLISTED.value
+                registration.participant.participant_status = (
+                    ParticipantStatus.SHORTLISTED.value
+                )
             elif current_status == ParticipantStatus.SHORTLISTED.value:
-                registration.participant.participant_status = ParticipantStatus.ATTENDED.value
+                registration.participant.participant_status = (
+                    ParticipantStatus.ATTENDED.value
+                )
             elif current_status == ParticipantStatus.CONFIRMED.value:
-                registration.participant.participant_status = ParticipantStatus.SHORTLISTED.value
+                registration.participant.participant_status = (
+                    ParticipantStatus.SHORTLISTED.value
+                )
             else:
-                registration.participant.participant_status = "REJECTED"  # Set to a string if not part of the enum
-    
+                registration.participant.participant_status = (
+                    "REJECTED"  # Set to a string if not part of the enum
+                )
+
             # Save the updated participant
             registration.participant.save()
 

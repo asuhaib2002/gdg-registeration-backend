@@ -21,7 +21,7 @@ from gdg_registration_backend.apps.gdg_participants.models import Participant
 from gdg_registration_backend.apps.gdg_registration.models import EventRegistration
 from gdg_registration_backend.apps.gdg_events.enums import EventTypes
 from django.core.paginator import Paginator
-
+from django.db.models import Q
 from dataclasses import asdict
 
 
@@ -29,43 +29,51 @@ class RegistrationService:
 
     @staticmethod
     def get_event_list(
-        event_type: str,
-        page: int,
-        per_page: int,
-        filter_by: str = None,
-        search: str = None,
+        event_type: str, page: int, per_page: int, filters: dict = None
     ) -> dict:
-        # Step 1: Retrieve the event based on event_type
+
         VALID_FILTERS = [
             "name",
             "email_address",
             "phone_number",
+            "cnic",
             "organization",
+            "participant_type",
+            "ambassador_name",
+            "participant_status",
         ]  # Add valid fields here
         event = Event.objects.filter(event_type=event_type).first()
         if not event:
             raise ValueError("Event not found.")
 
-        # Step 2: Validate filter field and optimize participant filtering with dynamic filtering
-        if filter_by and search:
-            if filter_by not in VALID_FILTERS:
-                raise ValueError("Invalid filter field.")
-            # Use icontains for case-insensitive matching
-            filter_dict = {f"{filter_by}__icontains": search}
-            participants = Participant.objects.filter(**filter_dict)
-        else:
-            participants = Participant.objects.all()
+        # Step 2: Initialize the filter query
+        filter_queries = Q()
 
-        # Step 3: Filter event registrations for the retrieved event and participants
+        # Step 3: Validate filters and build the query
+        if filters:
+            for filter_by, search in filters.items():
+                if filter_by not in VALID_FILTERS:
+                    raise ValueError(f"Invalid filter field: {filter_by}")
+                # Use icontains for case-insensitive matching
+                filter_queries &= Q(**{f"{filter_by}__icontains": search})
+
+        # Step 4: Fetch participants based on the filter queries
+        participants = (
+            Participant.objects.filter(filter_queries)
+            if filters
+            else Participant.objects.all()
+        )
+
+        # Step 5: Filter event registrations for the retrieved event and participants
         registrations = EventRegistration.objects.filter(
             event=event, participant__in=participants
         )
 
-        # Step 4: Paginate the query to handle large datasets efficiently
+        # Step 6: Paginate the query to handle large datasets efficiently
         paginator = Paginator(registrations, per_page)
         paginated_registrations = paginator.get_page(page)
 
-        # Step 5: Select-Related/Pagination (depending on the event type)
+        # Step 7: Select-Related/Pagination (depending on the event type)
         if event_type == EventTypes.WORKSHOP.value:
             participant_dtos = [
                 WorkshopParticipantDTO(
@@ -140,7 +148,7 @@ class RegistrationService:
         else:
             raise ValueError("Invalid event type.")
 
-        # Step 6: Convert the dataclass to a dictionary
+        # Step 8: Convert the dataclass to a dictionary
         event_dto = EventDTO(event_type=event.event_type, participants=participant_dtos)
         response_data = asdict(event_dto)  # Converts dataclass to dict
 

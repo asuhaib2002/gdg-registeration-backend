@@ -10,36 +10,27 @@ from gdg_registration_backend.apps.gdg_participants.data_class_model import Shor
 from .service import RegistrationService
 from gdg_registration_backend.apps.gdg_participants.enums import ParticipantStatus
 
+
+
 class GetEventListAPI(APIView):
-
     permission_classes = []
-
     def get(self, request):
+        event_type = request.query_params.get('event_type')
+        page = int(request.query_params.get('page', 1))
+        per_page = int(request.query_params.get('per_page', 10))
+        
+        # Get filters from query parameters
+        filters = {
+            key: value for key, value in request.query_params.items() 
+            if key not in ['event_type', 'page', 'per_page']
+        }
+
         try:
-            page = int(request.query_params.get("page", 1))  # Convert to int
-            per_page = int(request.query_params.get("perPage", 10))  # Convert to int
-            filter_by = request.query_params.get("filterBy", None)
-            search = request.query_params.get("search", None)
-
-            event_type = request.query_params.get("event_type")
-            if not event_type:
-                return Response(
-                    {"error": "event_type query parameter is required"},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
-            event_dto = RegistrationService.get_event_list(
-                event_type, page, per_page, filter_by, search
-            )
-            return Response(event_dto, status=status.HTTP_200_OK)
-
+            event_data = RegistrationService.get_event_list(event_type=event_type, page=page, per_page=per_page, filters=filters)
+            return Response(event_data, status=status.HTTP_200_OK)
         except ValueError as e:
-            return Response({"error": str(e)}, status=status.HTTP_404_NOT_FOUND)
-        except Exception as e:
-            return Response(
-                {"error": "Something went wrong"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
 
 
 class ShortlistParticipantsAPI(APIView):

@@ -20,25 +20,52 @@ from gdg_registration_backend.apps.gdg_participants.enums import ParticipantStat
 from gdg_registration_backend.apps.gdg_participants.models import Participant
 from gdg_registration_backend.apps.gdg_registration.models import EventRegistration
 from gdg_registration_backend.apps.gdg_events.enums import EventTypes
+from django.core.paginator import Paginator
+
+from dataclasses import asdict
 
 
 class RegistrationService:
 
     @staticmethod
     def get_event_list(
-        event_type: str, page: int, per_page: int, filter_by: str, search: str
-    ) -> EventDTO:
+        event_type: str,
+        page: int,
+        per_page: int,
+        filter_by: str = None,
+        search: str = None,
+    ) -> dict:
+        # Step 1: Retrieve the event based on event_type
+        VALID_FILTERS = [
+            "name",
+            "email_address",
+            "phone_number",
+            "organization",
+        ]  # Add valid fields here
         event = Event.objects.filter(event_type=event_type).first()
         if not event:
             raise ValueError("Event not found.")
 
-        participants = Participant.objects.all()
+        # Step 2: Validate filter field and optimize participant filtering with dynamic filtering
         if filter_by and search:
-            participants = participants.filter(**{filter_by: search})
+            if filter_by not in VALID_FILTERS:
+                raise ValueError("Invalid filter field.")
+            # Use icontains for case-insensitive matching
+            filter_dict = {f"{filter_by}__icontains": search}
+            participants = Participant.objects.filter(**filter_dict)
+        else:
+            participants = Participant.objects.all()
+
+        # Step 3: Filter event registrations for the retrieved event and participants
         registrations = EventRegistration.objects.filter(
             event=event, participant__in=participants
         )
 
+        # Step 4: Paginate the query to handle large datasets efficiently
+        paginator = Paginator(registrations, per_page)
+        paginated_registrations = paginator.get_page(page)
+
+        # Step 5: Select-Related/Pagination (depending on the event type)
         if event_type == EventTypes.WORKSHOP.value:
             participant_dtos = [
                 WorkshopParticipantDTO(
@@ -55,7 +82,7 @@ class RegistrationService:
                     participant_status=reg.participant.participant_status,
                     workshop_participation=reg.workshop_participation,
                 )
-                for reg in registrations[page * per_page - per_page : page * per_page]
+                for reg in paginated_registrations
             ]
 
         elif event_type == EventTypes.CONFERENCE.value:
@@ -74,7 +101,7 @@ class RegistrationService:
                     participant_status=reg.participant.participant_status,
                     job_role=reg.participant.job_role,
                 )
-                for reg in registrations[page * per_page - per_page : page * per_page]
+                for reg in paginated_registrations
             ]
 
         elif event_type == EventTypes.HACKATHON.value:
@@ -107,13 +134,15 @@ class RegistrationService:
                     google_technologies=reg.google_technologies,
                     previous_projects=reg.previous_projects,
                 )
-                for reg in registrations[page * per_page - per_page : page * per_page]
+                for reg in paginated_registrations
             ]
 
         else:
             raise ValueError("Invalid event type.")
+
+        # Step 6: Convert the dataclass to a dictionary
         event_dto = EventDTO(event_type=event.event_type, participants=participant_dtos)
-        response_data = asdict(event_dto)  # Convert the dataclass to a dictionary
+        response_data = asdict(event_dto)  # Converts dataclass to dict
 
         return response_data
 
@@ -135,7 +164,9 @@ class RegistrationService:
             # Send email notification here
 
     @staticmethod
-    def status_participants(shortlist_dto: ShortlistDTO, event_type: str, participant_status: str) -> list:
+    def status_participants(
+        shortlist_dto: ShortlistDTO, event_type: str, participant_status: str
+    ) -> list:
         # Validate if the status is a valid enum value
         if not ParticipantStatus.is_valid_status(participant_status):
             raise ValueError(f"Invalid participant status: {participant_status}")
@@ -170,8 +201,6 @@ class RegistrationService:
 
         return updated_participants
 
-                
-
     @staticmethod
     def register_event(event_type: str, data: dict) -> EventRegistration:
         participant_dto = ParticipantCreateDTO(
@@ -190,15 +219,13 @@ class RegistrationService:
         if event_type == EventTypes.WORKSHOP.value:
             workshop_dto = WorkshopParticipantCreateDTO(
                 **participant_dto.__dict__,
-                workshop_participation=data.get("workshop_participation", [])
+                workshop_participation=data.get("workshop_participation", []),
             )
             workshop_dto.validate()
             return RegistrationService._create_registration(event_type, workshop_dto)
 
         elif event_type == EventTypes.CONFERENCE.value:
-            conference_dto = ConferenceParticipantCreateDTO(
-                **participant_dto.__dict__
-            )
+            conference_dto = ConferenceParticipantCreateDTO(**participant_dto.__dict__)
             conference_dto.validate()
             return RegistrationService._create_registration(event_type, conference_dto)
 
@@ -209,7 +236,7 @@ class RegistrationService:
                 team_members=data.get("team_members"),
                 purpose_of_participation=data.get("purpose_of_participation", ""),
                 google_technologies=data.get("google_technologies", []),
-                previous_projects=data.get("previous_projects", "")
+                previous_projects=data.get("previous_projects", ""),
             )
             hackathon_dto.validate()
             return RegistrationService._create_registration(event_type, hackathon_dto)

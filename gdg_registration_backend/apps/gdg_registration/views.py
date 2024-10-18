@@ -16,8 +16,8 @@ class GetEventListAPI(APIView):
 
     def get(self, request):
         try:
-            page = request.query_params.get("page", 1)
-            per_page = request.query_params.get("perPage", 10)
+            page = int(request.query_params.get("page", 1))  # Convert to int
+            per_page = int(request.query_params.get("perPage", 10))  # Convert to int
             filter_by = request.query_params.get("filterBy", None)
             search = request.query_params.get("search", None)
 

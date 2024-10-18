@@ -63,6 +63,7 @@ class ParticipantCreateDTO:
     organization: str
     linkedin_url: str
     ambassador_name: str
+    job_role: str
 
     def validate(self):
         """ Validates common participant fields. """
@@ -76,7 +77,9 @@ class ParticipantCreateDTO:
         if not self.cnic:
             errors.append("CNIC is required")
         if not self.participant_type:
-            errors.append("participant type is required")
+            errors.append("Participant type is required")
+        if not self.job_role:
+            errors.append("Job Role is required")
         if errors:
             raise ValueError(errors)
 

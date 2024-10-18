@@ -139,35 +139,35 @@ class RegistrationService:
         # Validate if the status is a valid enum value
         if not ParticipantStatus.is_valid_status(participant_status):
             raise ValueError(f"Invalid participant status: {participant_status}")
-    
+
         # Fetch participants based on provided IDs
         participants = Participant.objects.filter(id__in=shortlist_dto.participants)
-        
+
         # Ensure that there are participants to update
         if not participants.exists():
             raise ValueError("No valid participants found.")
-    
+
         # Fetch the event by type
         event = Event.objects.filter(event_type=event_type).first()
         if not event:
             raise ValueError("Event not found.")
-    
+
         # Get event registrations for the event and participants
         registrations = EventRegistration.objects.filter(
             event=event, participant__in=participants
         )
-        
+
         # List to store updated participant names
         updated_participants = []
-    
+
         # Update the status for each participant in the registration
         for registration in registrations:
             registration.participant.participant_status = participant_status
             registration.participant.save()
-    
+
             # Append the participant's name to the list after status update
             updated_participants.append(registration.participant.name)
-    
+
         return updated_participants
 
                 
@@ -183,6 +183,7 @@ class RegistrationService:
             organization=data.get("organization", ""),
             linkedin_url=data.get("linkedin_url", ""),
             ambassador_name=data.get("ambassador_name", ""),
+            job_role=data.get("job_role", ""),
         )
 
         # Event-specific logic
@@ -196,7 +197,7 @@ class RegistrationService:
 
         elif event_type == EventTypes.CONFERENCE.value:
             conference_dto = ConferenceParticipantCreateDTO(
-                **participant_dto.__dict__, job_role=data["job_role"]
+                **participant_dto.__dict__
             )
             conference_dto.validate()
             return RegistrationService._create_registration(event_type, conference_dto)
@@ -228,6 +229,7 @@ class RegistrationService:
             organization=event_dto.organization,
             linkedin_url=event_dto.linkedin_url,
             ambassador_name=event_dto.ambassador_name,
+            job_role=event_dto.job_role,
         )
 
         # if event_type != EventTypes.WORKSHOP.value:

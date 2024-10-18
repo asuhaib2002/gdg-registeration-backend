@@ -1,8 +1,9 @@
 from django.urls import path
-from .views import GetEventListAPI, ShortlistParticipantsAPI, EventRegistrationView
+from .views import GetEventListAPI, ShortlistParticipantsAPI, UpdateParticipantStatusAPI,EventRegistrationView
 
-urlpatterns = [
-    path('get-event-list', GetEventListAPI.as_view(), name='get_event_list'),
-    path('shortlist-participants', ShortlistParticipantsAPI.as_view(), name='shortlist_participants'),
-    path('event/register/', EventRegistrationView.as_view(), name='event-register'),
+urlpatterns = [ 
+    path('events/list/', GetEventListAPI.as_view(), name='events_list'),
+     path('participants/status/update/', UpdateParticipantStatusAPI.as_view(), name='participants_status_update'),
+    path('events/register/', EventRegistrationView.as_view(), name='events_register'),
 ]
+  #QR Route to be added

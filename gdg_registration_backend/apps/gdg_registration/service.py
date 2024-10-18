@@ -11,7 +11,6 @@ from gdg_registration_backend.apps.gdg_participants.data_class_model import (
     HackathonParticipantDTO,
     HackathonTeamMemberDTO,
     ParticipantCreateDTO,
-    ParticipantDTO,
     ShortlistDTO,
     WorkshopParticipantCreateDTO,
     WorkshopParticipantDTO,
@@ -201,7 +200,19 @@ class RegistrationService:
 
         # Update the status for each participant in the registration
         for registration in registrations:
-            registration.participant.participant_status = participant_status
+            current_status = registration.participant.participant_status
+
+            # Update the participant's status based on the current status
+            if current_status == ParticipantStatus.PENDING.value:
+                registration.participant.participant_status = ParticipantStatus.SHORTLISTED.value
+            elif current_status == ParticipantStatus.SHORTLISTED.value:
+                registration.participant.participant_status = ParticipantStatus.ATTENDED.value
+            elif current_status == ParticipantStatus.CONFIRMED.value:
+                registration.participant.participant_status = ParticipantStatus.SHORTLISTED.value
+            else:
+                registration.participant.participant_status = "REJECTED"  # Set to a string if not part of the enum
+    
+            # Save the updated participant
             registration.participant.save()
 
             # Append the participant's name to the list after status update
